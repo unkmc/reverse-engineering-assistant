@@ -45,13 +45,13 @@ import reva.protocol.RevaChatServiceGrpc.RevaChatServiceStub;
 import reva.protocol.RevaVariableOuterClass.RevaVariable;
 
 @PluginInfo(
-        status = PluginStatus.STABLE, // probably a lie
-        packageName = "ReVa",
-        category = PluginCategoryNames.ANALYSIS,
-        shortDescription = "Reverse Engineering Assistant",
-        description = "An AI companion for your Ghidra project",
-	servicesRequired = {  },
-	servicesProvided = {  }
+				status = PluginStatus.STABLE, // probably a lie
+				packageName = "ReVa",
+				category = PluginCategoryNames.ANALYSIS,
+				shortDescription = "Reverse Engineering Assistant",
+				description = "An AI companion for your Ghidra project",
+	servicesRequired = { },
+	servicesProvided = { }
 )
 public class RevaPlugin extends ProgramPlugin {
 	TaskMonitor serviceMonitor;
@@ -182,9 +182,7 @@ public class RevaPlugin extends ProgramPlugin {
 				"--ollama-model", options.getOptions("Ollama").getString("Ollama Model", "llama3")
 			};
 			processBuilder.command(command);
-			processBuilder.redirectError(ProcessBuilder.Redirect.DISCARD);
-			processBuilder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
-			Msg.info(this, "Starting inference server... " + String.join(" ", command));
+			Msg.info(this, "Starting inference server with command: " + String.join(" ", command));
 			try {
 				final Process inferenceProcess = processBuilder.start();
 				try {
@@ -196,9 +194,21 @@ public class RevaPlugin extends ProgramPlugin {
 						inferenceProcess.destroy();
 					});
 
-					inferenceProcess.waitFor();
-					byte[] b = inferenceProcess.getErrorStream().readAllBytes();
-					Msg.info(this, new String(b));
+					int exitCode = inferenceProcess.waitFor();
+					Msg.info(this, "Inference process exited with code: " + exitCode);
+
+					byte[] errorBytes = inferenceProcess.getErrorStream().readAllBytes();
+					String errorOutput = new String(errorBytes);
+					if (!errorOutput.isEmpty()) {
+							Msg.info(this, "Inference process error output: " + errorOutput);
+					}
+
+					byte[] outputBytes = inferenceProcess.getInputStream().readAllBytes();
+					String output = new String(outputBytes);
+					if (!output.isEmpty()) {
+							Msg.info(this, "Inference process output: " + output);
+					}
+
 					Msg.warn(this, "Inference process exited!");
 				} catch (Exception e) {
 					Msg.error(this, "Error starting ReVa inference server: " + e.getMessage(), e);
@@ -272,47 +282,47 @@ public class RevaPlugin extends ProgramPlugin {
 
 
 	/**
-     * Given a function name from ReVa, find the function in the current program.
-     * @param functionName
-     * @return The function, or null if not found.
-     */
-    public Function findFunction(String functionName) {
-        Function function = null;
-        for (Function f : this.currentProgram.getFunctionManager().getFunctions(true)) {
-            if (f.getName(true).equals(functionName)) {
-                function = f;
-                break;
-            }
-        }
+		 * Given a function name from ReVa, find the function in the current program.
+		 * @param functionName
+		 * @return The function, or null if not found.
+		 */
+		public Function findFunction(String functionName) {
+				Function function = null;
+				for (Function f : this.currentProgram.getFunctionManager().getFunctions(true)) {
+						if (f.getName(true).equals(functionName)) {
+								function = f;
+								break;
+						}
+				}
 
-        if (function == null) {
-            // Let's find the function by symbol
-            for (Symbol symbol : this.currentProgram.getSymbolTable().getAllSymbols(true)) {
-                if (symbol.getName().equals(functionName)) {
-                    function = this.currentProgram.getFunctionManager().getFunctionAt(symbol.getAddress());
-                    if (function != null) {
-                        break;
-                    }
-                }
-            }
-        }
-        return function;
-    }
+				if (function == null) {
+						// Let's find the function by symbol
+						for (Symbol symbol : this.currentProgram.getSymbolTable().getAllSymbols(true)) {
+								if (symbol.getName().equals(functionName)) {
+										function = this.currentProgram.getFunctionManager().getFunctionAt(symbol.getAddress());
+										if (function != null) {
+												break;
+										}
+								}
+						}
+				}
+				return function;
+		}
 
-    public Address addressFromAddressOrSymbol(String addressOrSymbol) {
-        Address address = this.currentProgram.getAddressFactory().getAddress(addressOrSymbol);
-        if (address == null) {
-            // OK, it's not an address, let's try a symbol
-            SymbolIterator symbols = this.currentProgram.getSymbolTable().getSymbols(addressOrSymbol);
-            if (symbols.hasNext()) {
-                Symbol symbol = symbols.next();
-                if (symbol != null) {
-                    address = symbol.getAddress();
-                }
-            }
-        }
-        return address;
-    }
+		public Address addressFromAddressOrSymbol(String addressOrSymbol) {
+				Address address = this.currentProgram.getAddressFactory().getAddress(addressOrSymbol);
+				if (address == null) {
+						// OK, it's not an address, let's try a symbol
+						SymbolIterator symbols = this.currentProgram.getSymbolTable().getSymbols(addressOrSymbol);
+						if (symbols.hasNext()) {
+								Symbol symbol = symbols.next();
+								if (symbol != null) {
+										address = symbol.getAddress();
+								}
+						}
+				}
+				return address;
+		}
 
 	void installRestartInferenceCommand() {
 		new ActionBuilder("ReVa Restart Inference", "ReVa")
@@ -484,9 +494,10 @@ public class RevaPlugin extends ProgramPlugin {
 
 	void saveConnectionInfo() {
 		// Write our server hostname and port to a well known file
-		// in the /tmp/ directory to help `reva-chat` find us
+		// in the temp directory to help `reva-chat` find us
 		// when it starts up.
-		File reva_temp_dir = new File("/tmp/.reva/");
+		String temp_dir = System.getProperty("java.io.tmpdir");
+		File reva_temp_dir = new File(temp_dir , ".reva");
 		reva_temp_dir.mkdirs();
 		File connectionFile = new File(reva_temp_dir, String.format("reva-connection-%d.connection", getExtensionPort()));
 		// Now write "localhost:port" to the file
