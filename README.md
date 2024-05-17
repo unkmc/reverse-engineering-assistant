@@ -25,13 +25,14 @@ information from the tools, but when there is no information it can still respon
 questions from its training.
 
 You can ask questions like:
+- What are the interesting strings in this program?
 - Does this program use encryption? Write a markdown report on the encryption and where it is used.
 - Draw a class diagram using plantuml syntax.
 - Start from main, examine the program in detail. Rename variables as you go and provide a summary of the program.
 - Explain the purpose of the `__mod_init` segment.
 - What does `mmap` return?
 - What does the function at address 0x80000 do?
-- This is a CTF problem. Start at main, examine the program in detail and write a pwntools script to get the flag.
+- This is a CTF problem. Write a pwntools script to get the flag.
 
 An important part of reverse engineering is the process. Many other tools simply ask a single question of the LLM,
 this means it is difficult to determine _why_ a thing happened. In ReVa we break all actions down into small parts
@@ -98,24 +99,41 @@ If you have more than one Ghidra open, you can select the right one with
 `reva-chat --project ${project-name}`, if it is not set, `reva-chat` will
 ask you which project you want to connect to.
 
-## Installation
+## Protocol Build
 
-First install the python component, I like to use `pipx`. It is best to make
-sure that `reva-server` and `reva-chat` are on your path.
-The Ghidra extension will need to start `reva-server`, and you will need to
-run `reva-chat`.
+To communicate between `reva-server` and the extension, [gRPC](https://grpc.io) is used. You can read more about that (here)[./DEVELOPER.md]. Building the source files from those protocol definitions is driven from the [Makefile](/Makefile). To build the protocol source code files, run this command in the project's root:
 
-To install the particular extension for your disassembler see:
-- [Ghidra Support](#ghidra-support)
+```sh
+make protocol
+```
 
-The chat can be started with:
+## Python Project (reva-server and reva-chat) Installation
+
+First install the python component, I like to use `pipx`. Install it with something like:
+
+```sh
+pip install pipx
+```
+
+In the `reverse-engineering-assistant` folder, run:
+
+```sh
+pipx install .
+```
+
+After installing the python project, pipx may warn you that you need to add a folder to your PATH environment variable. Make sure that the folder (now containing `reva-server` and `reva-chat`) are in your PATH variable. pipx can do it for you with this command:
+
+```sh
+pipx ensurepath
+```
+
+The extension will need to start `reva-server`, and you will need to run `reva-chat`. In case you do not want to add them to your PATH, see the [Configuration](#configuration) section for how to set the path to the executables.
+
+Once the `reva-server` has been started by the extension the chat can be started with:
 
 ```sh
 reva-chat
 ```
-
-> You can also configure the path to `reva-server` in `Edit -> Tool Options -> ReVa`
-> if it is not on your path. But you really should put it on your path!
 
 # Ghidra Support
 
@@ -130,6 +148,10 @@ After installation, enable the `ReVa Plugin` extension in the CodeBrowser tool (
 If you want ReVa enabled by default, click File -> Save Tool to save the configuration.
 
 If everything is working correctly you will see a ReVa menu on your menu bar.
+
+## Configuration
+
+You can modify the plugin configuration in `Edit -> Tool Options -> ReVa`.
 
 ## Undo
 
